@@ -1,0 +1,48 @@
+{
+  "name": "logic-looper",
+  "version": "1.0.0",
+  "description": "Daily puzzle game with streak-based engagement",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"cd frontend && npm run dev\" \"cd backend && npm run dev\"",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "type-check": "npm run type-check:frontend && npm run type-check:backend",
+    "type-check:frontend": "cd frontend && npm run type-check",
+    "type-check:backend": "cd backend && npm run type-check",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:e2e": "npx playwright test --pass-with-no-tests",
+    "test:coverage": "npm --prefix frontend run test:coverage -- --run",
+    "test:frontend": "cd frontend && npm run test",
+    "test:backend": "cd backend && npm run test",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:backend": "cd backend && npm run lint",
+    "format": "npm run format:frontend && npm run format:backend",
+    "format:frontend": "cd frontend && npm run format",
+    "format:backend": "cd backend && npm run format",
+    "format:check": "npm run format:check:frontend && npm run format:check:backend",
+    "format:check:frontend": "cd frontend && npm run format:check",
+    "format:check:backend": "cd backend && npm run format:check",
+    "bundle:check": "cd frontend && npm run build:budget",
+    "demo:regression": "node scripts/demo-regression.mjs",
+    "lighthouse:run": "node -e \"require('fs').mkdirSync('reports',{recursive:true})\" && npx lighthouse http://localhost:5173 --quiet --preset=desktop --only-categories=performance --chrome-flags=\"--headless=new --no-sandbox --disable-dev-shm-usage\" --output=json --output-path=./reports/lighthouse.json",
+    "lighthouse:ci": "node -e \"require('fs').mkdirSync('reports',{recursive:true})\" && npx lighthouse http://127.0.0.1:4173 --quiet --preset=desktop --only-categories=performance --chrome-flags=\"--headless=new --no-sandbox --disable-dev-shm-usage\" --output=json --output-path=./reports/lighthouse.json",
+    "lighthouse:check": "node scripts/check-lighthouse.mjs",
+    "ci:check": "npm run lint && npm run type-check && npm run test:coverage && npm run format:check && npm run bundle:check",
+    "prepare": "node -e \"if (process.env.CI || process.env.VERCEL) process.exit(0); require('child_process').execSync('npx husky install', { stdio: 'inherit' })\""
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "concurrently": "^8.2.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10",
+    "playwright": "^1.58.2"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,md,css}": "prettier --write",
+    "frontend/src/**/*.{ts,tsx}": "npm --prefix frontend run lint -- --fix",
+    "backend/src/**/*.ts": "npm --prefix backend run lint -- --fix"
+  }
+}

@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      VITE_API_URL: http://127.0.0.1:3001
+      VITE_FIREBASE_API_KEY: ci-firebase-api-key
+      VITE_FIREBASE_AUTH_DOMAIN: ci.firebaseapp.com
+      VITE_FIREBASE_PROJECT_ID: ci-project-id
+      VITE_FIREBASE_APP_ID: ci-app-id
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+            backend/package-lock.json
+
+      - name: Install root deps
+        run: npm ci
+
+      - name: Install frontend deps
+        run: npm --prefix frontend ci
+
+      - name: Install backend deps
+        run: npm --prefix backend ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Test with coverage gate
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build
+
+      - name: Bundle budget
+        run: npm run bundle:check
+
+      - name: Start frontend preview
+        run: |
+          npm --prefix frontend run preview -- --host 127.0.0.1 --port 4173 &
+          echo $! > preview.pid
+          for i in {1..40}; do
+            if curl -fsS http://127.0.0.1:4173 >/dev/null; then
+              echo "Preview is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Preview failed to become ready in time"
+          exit 1
+
+      - name: Setup Chrome
+        id: setup-chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Lighthouse run
+        run: |
+          node -e "require('fs').mkdirSync('reports',{recursive:true})"
+          for attempt in 1 2 3; do
+            echo "Lighthouse attempt $attempt"
+            npx lighthouse http://127.0.0.1:4173 \
+              --quiet \
+              --preset=desktop \
+              --only-categories=performance \
+              --chrome-path "${{ steps.setup-chrome.outputs.chrome-path }}" \
+              --chrome-flags="--headless=new --no-sandbox --disable-dev-shm-usage" \
+              --output=json \
+              --output-path=./reports/lighthouse.json && break
+            if [ "$attempt" -eq 3 ]; then
+              echo "Lighthouse failed after 3 attempts"
+              exit 1
+            fi
+            sleep 3
+          done
+
+      - name: Lighthouse budget check
+        run: npm run lighthouse:check
+
+      - name: Stop frontend preview
+        if: always()
+        run: |
+          if [ -f preview.pid ]; then
+            kill $(cat preview.pid) || true
+          fi
